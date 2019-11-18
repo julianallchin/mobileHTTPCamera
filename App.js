@@ -1,44 +1,40 @@
 import React from 'react';
-import { Text, View, TouchableOpacity, TextInput, Alert, ScrollView } from 'react-native';
+import { Text, View, TouchableOpacity, TextInput, Alert, ScrollView, Image } from 'react-native';
 import * as Permissions from 'expo-permissions';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Camera } from 'expo-camera';
 
 function upload(img, pi) {
-	var piURI = "https://bot" + pi + ".seattleacademy.software/phone"
+	var piURI = "https://bot" + pi + ".seattleacademy.software/img"
 
 
-	var details = {
-		'img': img.base64,
-		'uri': piURI,
-	};
+	// var details = {
+	// 	'img': img.base64,
+	// 	'uri': piURI,
+	// };
 
-	console.log(details);
+	// var formBody = [];
 
-	var formBody = [];
+	// for (var property in details) {
+	// 	var encodedKey = encodeURIComponent(property);
+	// 	var encodedValue = encodeURIComponent(details[property]);
+	// 	formBody.push(encodedKey + "=" + encodedValue);
+	// }
 
-	for (var property in details) {
-		var encodedKey = encodeURIComponent(property);
-		var encodedValue = encodeURIComponent(details[property]);
-		formBody.push(encodedKey + "=" + encodedValue);
-	}
-
-	formBody = formBody.join("&");
+	// formBody = formBody.join("&");
 
 
 	return fetch(piURI, {
 		method: 'POST',
-		headers: {
-				'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-		},
-		body: formBody
+		body: 'data:image/jpeg;base64,' + img.base64
 	});
 }
 
 export default class CameraExample extends React.Component {
 	state = {
 		piNumber: '3',
-		imageWidth: '10',
+		updateInterval: '1000',
+		imageWidth: '100',
 		compressedURI: '',
 		responceData: 'wait...',
 		hasCameraPermission: null,
@@ -120,9 +116,9 @@ export default class CameraExample extends React.Component {
 								}}
 
 								onPress={() => {
+									
 									if (this.camera) {
-
-										var pictureSize = {width:10,height:10};
+										var pictureSize = {width:parent.state.imageWidth,height:parent.state.imageWidth};
 
 										var picture = this.camera.takePictureAsync({
 											// Picture settings
@@ -154,21 +150,44 @@ export default class CameraExample extends React.Component {
 												{ cancelable: false }
 											);
 
-											ImageManipulator.manipulateAsync(
-												imgObject.uri, 
-												[{resize:pictureSize}], 
-												{compress:0, format:ImageManipulator.SaveFormat.JPEG, base64:true}
-											).then(img => upload(img, piNumber)).then(responce => parent.setState({ responceData: responce }));
+											var runLoop = setInterval(function(){
+												ImageManipulator.manipulateAsync(
+													imgObject.uri, 
+													[{resize:pictureSize}], 
+													{compress:0, format:ImageManipulator.SaveFormat.PNG, base64:true}
+												).then(img => {
+													upload(img, piNumber).then(responce => parent.setState({ responceData: responce })); 
+													parent.setState({compressedURI: img.uri})
+												});
+
+												console.log("sent");
+											}, parent.state.updateInterval);
+
+											parent.setState({runLoop: runLoop});
 										
 										});
 									}
 								}}>
 
-								<Text style = {{ fontSize: 18,width:100,  marginBottom: 10, color: 'white'}}> Snap </Text>
+								<Text style = {{ fontSize: 18,width:100,  marginBottom: 10, color: 'white'}}> Start </Text>
 
 							</TouchableOpacity>
 
+							<TouchableOpacity
+								style = {{
+									flex: 0.1,
+									whiteSpace: 'pre-wrap',
+									alignSelf: 'flex-end',
+								}}
 
+								onPress={() => {
+									clearInterval(this.state.runLoop);
+
+								}}>
+
+								<Text style = {{ fontSize: 18,width:100,  marginBottom: 10, color: 'white'}}> Stop </Text>
+
+							</TouchableOpacity>
 
 						</View>
 
@@ -212,11 +231,34 @@ export default class CameraExample extends React.Component {
 							returnKeyType={"done"}
 						/>
 
+						<Text style = {{ fontSize: 18, width:200, marginTop: 10, marginBottom: 10, color: 'black'}}> Update Interval:  </Text>
+
+						<TextInput
+							style={{
+								padding: 4,
+								borderColor: 'gray', 
+								borderWidth: 1,
+								borderRadius: 4
+							}}
+							defaultValue="1000"
+							numeric
+							keyboardType={'numeric'}
+							onChangeText={text => { this.setState({ updateInterval: text })}}
+							returnKeyType={"done"}
+						/>
+
 						<Text style = {{ fontSize: 18, width:200, marginTop: 10, marginBottom: 10, color: 'black'}}> Debug:  </Text>
 
 						<Text style = {{ fontSize: 12, width:'100%',  marginBottom: 10, color: 'darkgray'}}> 
 							{JSON.stringify(this.state.responceData)}
 						</Text>
+
+						<View style={{ marginVertical: 20, alignItems: 'center', justifyContent: 'center' }}>
+					        <Image
+					        	source={{ uri: parent.state.compressedURI }}
+					        	style={{ width: 300, height: 300, resizeMode: 'contain' }}
+					        />
+				      	</View>
 
 					</ScrollView>
 				</View>
